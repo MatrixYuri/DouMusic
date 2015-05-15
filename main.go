@@ -26,25 +26,26 @@ func main() {
 	user.Login(imgName, captcha)
 	songs := model.GetList(user.Ck)
 	if len(songs.Songs) == 0 {
-		log.Fatal("列表获取失败，请重试")
+		log.Fatal("\033[0;31m列表获取失败，请重试\033[0m")
 	}
 	fmt.Println("红心列表获取成功")
 	fmt.Printf("总计: [%d]\n", len(songs.Songs))
 
 	switch mode {
-	case "-list":
+	case "-l":
 		model.SaveList(user.NickName+"'s Love.txt", songs)
 		fmt.Println("保存完毕")
-	case "-download":
+	case "-d":
 		songs.Download()
 	}
+	return
 	// gl.StartDriver(view.MainWindow)
 }
 
 func showHelp() {
 	fmt.Println("使用方法:")
-	fmt.Println("\t-list [用户名] [密码]\t登录豆瓣帐号并自动保存红心歌曲列表")
-	fmt.Println("\t-download [用户名] [密码]\t登录豆瓣帐号并自动下载红心歌曲")
+	fmt.Println("\t-l [用户名] [密码]\t登录豆瓣帐号并自动保存红心歌曲列表")
+	fmt.Println("\t-d [用户名] [密码]\t登录豆瓣帐号并自动下载红心歌曲")
 }
 
 func getCaptcha() string {
