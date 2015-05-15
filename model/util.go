@@ -1,8 +1,8 @@
 package model
 
 import (
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -11,12 +11,16 @@ var (
 	cookies []*http.Cookie
 )
 
-func httpDo(url string, args string, method string) string {
+// func init() {
+// 	cookies = getCookieFromFile("cookies")
+// }
+
+func httpDo(url string, args string, method string, useCookie bool) string {
 	client := &http.Client{}
 
 	req, err := http.NewRequest(method, url, strings.NewReader(args))
 	if err != nil {
-		// handle error
+		log.Fatal(err)
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -28,24 +32,40 @@ func httpDo(url string, args string, method string) string {
 	}
 
 	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return ""
+
+	if err != nil || resp.StatusCode != 200 {
+		log.Fatalf("状态码: %d\n获取异常,请休息一会儿再试", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 
-	if url == loginApi {
+	if useCookie {
 		cookies = resp.Cookies()
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		// handle error
+		log.Fatal(err)
 	}
 
 	return string(body)
 }
 
+// func setCookieToFile(name string) {
+// 	io.buffer
+// }
+
+// func getCookieFromFile(name string) []*http.Cookie {
+// 	ret, err := ioutil.ReadFile(name)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	content := string(ret)
+// 	lines := strings.Split(content, "\n")
+// 	for _, line := range lines {
+
+// 	}
+// }
+
 func SaveList(name string, songs SongsList) {
-	ioutil.WriteFile(name+"喜欢的歌曲.txt", []byte(songs.String()), 0777)
+	ioutil.WriteFile(name, []byte(songs.String()), 0777)
 }

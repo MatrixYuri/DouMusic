@@ -1,21 +1,29 @@
 package model
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"math"
+	"os"
 	"strings"
+	"sync"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type Song struct {
-	Id           string `json:"id"`            //歌曲id
+	Id           string `json:"id"`            //歌曲id,也是sid
+	Ssid         string `json:"ssid"`          //歌曲ssid,关键
 	Title        string `json:"title"`         //歌曲名
 	Artist       string `json:"artist"`        //歌手
 	Liked        bool   `json:"liked"`         //是否红心
 	SubjectTitle string `json:"subject_title"` //专辑名
 	Picture      string `json:"picture"`       //专辑封面
 	Path         string `json:"path"`          //所属专辑地址
-	IsDone       bool   `json:"-"`             //是否已下载
+	Url          string `json:"url"`           //下载地址
 }
 
 type SongsList struct {
@@ -27,7 +35,7 @@ type SongsList struct {
 }
 
 func (song Song) String() string {
-	return fmt.Sprintf("id=%s|done=%v\n", song.Id, song.IsDone)
+	return fmt.Sprintf("%s|%s\n", song.Title, song.Url)
 }
 
 func (list SongsList) String() string {
@@ -49,7 +57,7 @@ func GetList(ck string) SongsList {
 		}
 	}
 	url := fmt.Sprintf(likeListApi, ck, bid, 0)
-	ret := httpDo(url, "", "GET")
+	ret := httpDo(url, "", "GET", false)
 	var songs SongsList
 	err := json.NewDecoder(strings.NewReader(ret)).Decode(&songs)
 	if err != nil {
@@ -62,7 +70,7 @@ func GetList(ck string) SongsList {
 	for i := 1; i <= pageNum; i++ {
 		go func(index int) {
 			url := fmt.Sprintf(likeListApi, ck, bid, index*15)
-			ret := httpDo(url, "", "GET")
+			ret := httpDo(url, "", "GET", false)
 			if ret == "{\"songs\":[]}" {
 				return
 			}
@@ -84,6 +92,80 @@ func GetList(ck string) SongsList {
 	return songs
 }
 
-func (list *SongsList) Download() {
+func (song *Song) GetSsid() {
+	doc, err := goquery.NewDocument(song.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	song.Ssid = doc.Find("li#"+song.Id).AttrOr("data-ssid", "0")
+}
 
+var lock sync.Mutex
+
+func (song *Song) GetDownloadLink() bool {
+	url := fmt.Sprintf(startFM, song.Id, song.Ssid)
+
+	lock.Lock()
+	httpDo(url, "", "GET", true)
+	ret := httpDo(playlistApi, "", "GET", false)
+	lock.Unlock()
+
+	type playlist struct {
+		R     int    `json:"r"`
+		Songs []Song `json:"song"`
+	}
+	var temp playlist
+	err := json.NewDecoder(strings.NewReader(ret)).Decode(&temp)
+	if err != nil || temp.R != 0 {
+		log.Println(err)
+		return false
+	}
+	for _, v := range temp.Songs {
+		if v.Ssid == song.Ssid {
+			song.Url = v.Url
+			log.Println("found: " + song.Title)
+			return true
+		}
+	}
+	log.Println("not found: " + song.Title)
+	return false
+}
+
+func (list *SongsList) Download() {
+	result := make(chan bool)
+	count := 0
+	for _, song := range list.Songs {
+		go func(s Song) {
+			s.GetSsid()
+			s.GetDownloadLink()
+			result <- true
+		}(song)
+		count++
+		if count >= 2 {
+			break
+		}
+	}
+	for i := 0; i < count; i++ {
+		<-result
+	}
+	SaveList("downloadTask.txt", *list)
+	fmt.Println("下载链接整理完毕，开始下载")
+
+	for _, song := range list.Songs {
+		fileName := song.Title + ".mp3"
+		if _, err := os.Stat(fileName); os.IsNotExist(err) {
+			downloadWorker(fileName, song.Url)
+		}
+	}
+}
+
+func downloadWorker(name string, url string) {
+	data := httpDo(url, "", "GET", false)
+
+	go func() {
+		file, _ := os.Create(name)
+		defer file.Close()
+		io.Copy(file, bytes.NewReader([]byte(data)))
+		log.Println("下载完毕:\t" + name)
+	}()
 }

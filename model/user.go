@@ -23,14 +23,14 @@ type User struct {
 }
 
 func GetCaptcha() string {
-	captcha := httpDo(captchaApi, "", "GET")
+	captcha := httpDo(captchaApi, "", "GET", false)
 	captcha = captcha[1 : len(captcha)-1]
+
+	url := fmt.Sprintf(captchaImgApi, captcha)
+	img := httpDo(url, "", "GET", false)
 
 	imgFile, _ := os.Create("./captcha/" + captcha + ".jpeg")
 	defer imgFile.Close()
-
-	url := fmt.Sprintf(captchaImgApi, captcha)
-	img := httpDo(url, "", "GET")
 	io.Copy(imgFile, bytes.NewReader([]byte(img)))
 
 	return captcha
@@ -39,7 +39,7 @@ func GetCaptcha() string {
 func (u *User) Login(captchaId string, captchaSolution string) {
 	args := "source=radio&alias=%s&form_password=%s&captcha_id=%s&captcha_solution=%s&remember=on"
 	args = fmt.Sprintf(args, u.Name, u.Pass, captchaId, captchaSolution)
-	ret := httpDo(loginApi, args, "POST")
+	ret := httpDo(loginApi, args, "POST", true)
 
 	type loginInfo struct {
 		User   *User  `json:"user_info"`

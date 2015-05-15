@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -10,29 +11,32 @@ import (
 )
 
 func main() {
-	if len(os.Args) <= 1 {
+	if len(os.Args) < 4 {
 		showHelp()
 		return
 	}
 	mode := os.Args[1]
+
+	imgName := getCaptcha()
+	user := model.User{Name: "rubbish990@foxmail.com", Pass: "qwe123"}
+	// user := model.User{Name: os.Args[2], Pass: os.Args[3]}
+	var captcha string
+	fmt.Print("请输入验证码: ")
+	fmt.Scanf("%s\n", &captcha)
+	user.Login(imgName, captcha)
+	songs := model.GetList(user.Ck)
+	if len(songs.Songs) == 0 {
+		log.Fatal("列表获取失败，请重试")
+	}
+	fmt.Println("红心列表获取成功")
+	fmt.Printf("总计: [%d]\n", len(songs.Songs))
+
 	switch mode {
 	case "-list":
-		if len(os.Args) < 4 {
-			showHelp()
-			return
-		}
-		imgName := getCaptcha()
-		user := model.User{Name: "rubbish990@foxmail.com", Pass: "qwe123"}
-		// user := model.User{Name: os.Args[2], Pass: os.Args[3]}
-		var captcha string
-		fmt.Print("请输入验证码: ")
-		fmt.Scanf("%s\n", &captcha)
-		user.Login(imgName, captcha)
-		songs := model.GetList(user.Ck)
-		fmt.Printf("红心歌曲总计: [%d]\n", len(songs.Songs))
-		model.SaveList(user.NickName, songs)
+		model.SaveList(user.NickName+"'s Love.txt", songs)
+		fmt.Println("保存完毕")
 	case "-download":
-
+		songs.Download()
 	}
 	// gl.StartDriver(view.MainWindow)
 }

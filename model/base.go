@@ -6,4 +6,6 @@ const (
 	captchaImgApi = "http://douban.fm/misc/captcha?size=s&id=%s" //size=s小号m中号l大号
 
 	likeListApi = "http://douban.fm/j/play_record?ck=%s&spbid=::%s&type=liked&start=%d"
+	startFM     = "http://douban.fm?start=%sg%sg"
+	playlistApi = "http://douban.fm/j/mine/playlist?type=n&sid=&pt=0.0&channel=0&from=mainsite&kbps=64"
 )
