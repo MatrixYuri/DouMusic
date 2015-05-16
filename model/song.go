@@ -1,17 +1,15 @@
 package model
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/matrixyuri/DouMusic/model/source"
 )
 
 type Song struct {
@@ -135,38 +133,15 @@ func (song *Song) GetDownloadLink() bool {
 	return false
 }
 
+func (song *Song) SearchKeyword() string {
+	return fmt.Sprintf("%s %s", song.Title, song.Artist)
+}
+
 func (list *SongsList) Download() {
-	var getWG sync.WaitGroup
-	for i, _ := range list.Songs {
-		getWG.Add(1)
-		go func(index int) {
-			list.Songs[index].GetSsid()
-			list.Songs[index].GetDownloadLink()
-			SaveList("downloadTask.txt", *list)
-			defer getWG.Done()
-		}(i)
-	}
-	getWG.Wait()
-
-	fmt.Println("\033[0;32m====下载链接整理完毕，开始下载====\033[0m")
-
-	var downWG sync.WaitGroup
 	for _, song := range list.Songs {
-		fileName := "./download/" + song.Title + ".mp3"
-		if _, err := os.Stat(fileName); os.IsNotExist(err) && song.Url != "" {
-			downWG.Add(1)
-			go func(name string, url string) {
-				data := httpDo(url, "", "GET", false)
-
-				file, _ := os.Create(name)
-				defer file.Close()
-				io.Copy(file, bytes.NewReader([]byte(data)))
-				log.Printf("保存:\t\033[0;33m%s\033[0m\n", name)
-				defer downWG.Done()
-			}(fileName, song.Url)
-		} else {
-			log.Printf("跳过:\t\033[0;37m%s\033[0m\n", song.Title)
+		if result, hasResult := source.SearchAll(song.SearchKeyword()); hasResult {
+			song.Url = result.Url
 		}
 	}
-	downWG.Wait()
+
 }
