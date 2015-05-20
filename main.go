@@ -39,7 +39,6 @@ func main() {
 		songs.Download()
 	}
 	return
-	// gl.StartDriver(view.MainWindow)
 }
 
 func showHelp() {

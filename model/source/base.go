@@ -6,8 +6,10 @@ type Agent interface {
 }
 
 type Song struct {
-	Id  string
-	Url string
+	Name   string
+	Artist string
+	Album  string
+	Url    string
 }
 
 var (

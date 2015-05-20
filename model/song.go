@@ -3,13 +3,8 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"strings"
-	"sync"
-
-	"github.com/PuerkitoBio/goquery"
-	"github.com/matrixyuri/DouMusic/model/source"
 )
 
 type Song struct {
@@ -90,58 +85,6 @@ func GetList(ck string) SongsList {
 	return songs
 }
 
-func (song *Song) GetSsid() {
-	doc, err := goquery.NewDocument(song.Path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	song.Ssid = doc.Find("li#"+song.Id).AttrOr("data-ssid", "0")
-}
-
-var lock sync.Mutex
-
-func (song *Song) GetDownloadLink() bool {
-	url := fmt.Sprintf(startFM, song.Id, song.Ssid)
-
-	lock.Lock()
-	httpDo(url, "", "GET", true)
-	ret := httpDo(playlistApi, "", "GET", false)
-	for ret == "" {
-		log.Println("\033[0;31m重试:\033[0m\t" + song.Title)
-		ret = httpDo(playlistApi, "", "GET", false)
-	}
-	lock.Unlock()
-
-	type playlist struct {
-		R     int    `json:"r"`
-		Songs []Song `json:"song"`
-	}
-	var temp playlist
-	err := json.NewDecoder(strings.NewReader(ret)).Decode(&temp)
-	if err != nil || temp.R != 0 {
-		log.Println(err)
-		return false
-	}
-	for _, v := range temp.Songs {
-		if v.Ssid == song.Ssid {
-			song.Url = v.Url
-			log.Println("得到:\t" + song.Title)
-			return true
-		}
-	}
-	log.Println("\033[0;31m未匹配:\033[0m\t" + song.Title)
+func Download() bool {
 	return false
-}
-
-func (song *Song) SearchKeyword() string {
-	return fmt.Sprintf("%s %s", song.Title, song.Artist)
-}
-
-func (list *SongsList) Download() {
-	for _, song := range list.Songs {
-		if result, hasResult := source.SearchAll(song.SearchKeyword()); hasResult {
-			song.Url = result.Url
-		}
-	}
-
 }
